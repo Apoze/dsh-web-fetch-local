@@ -1,0 +1,30 @@
+{
+  "name": "dsh-web-fetch-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": "./index.js",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@mozilla/readability": "0.6.0",
+    "dompurify": "3.4.14",
+    "dsh-safe-web-fetch": "0.1.0-next.0",
+    "jsdom": "30.0.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1 <5",
+    "@deepseek-ai/dsh-invariants": ">=0.1.0-rc.5 <0.2.0",
+    "@deepseek-ai/dsh-web": ">=0.1.0-rc.5 <0.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-invariants": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-web": "0.1.1-rc.2"
+  }
+}
