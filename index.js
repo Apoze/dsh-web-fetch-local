@@ -1,5 +1,5 @@
 import { SafeWebFetchProvider } from "dsh-safe-web-fetch";
-import { extractReadableHtml } from "./readability.js";
+import { escapeHtml, extractReadableHtml, sanitizeHtml, truncateHtml } from "./readability.js";
 
 export const name = "web-fetch-local";
 export const inject = ["web"];
@@ -7,8 +7,8 @@ export const inject = ["web"];
 const safeConfig = Object.freeze({
   maxUrlLength: 2_048,
   maxResponseBytes: 5_000_000,
-  // Acquisition needs enough headroom for Readability before final capping.
-  maxBodyChars: 250_000,
+  // Acquisition needs enough headroom to reach anchors in large documentation.
+  maxBodyChars: 1_000_000,
   timeoutMs: 25_000,
   maxRedirects: 5,
   maxConcurrentRequests: 8,
@@ -42,7 +42,13 @@ export class LocalSafeReadabilityProvider {
         },
       });
     } catch {
-      return capResult(result);
+      return capResult({
+        ...result,
+        body: {
+          kind: "html",
+          content: safeFallback(result.body.content, result.url),
+        },
+      });
     }
   }
 }
@@ -53,9 +59,20 @@ export function apply(ctx) {
 
 function capResult(result) {
   if (result.body.content.length <= MAX_BODY_CHARS) return result;
+  const content = result.body.kind === "html"
+    ? truncateHtml(result.body.content, MAX_BODY_CHARS)
+    : result.body.content.slice(0, MAX_BODY_CHARS);
   return {
     ...result,
-    body: { ...result.body, content: result.body.content.slice(0, MAX_BODY_CHARS) },
+    body: { ...result.body, content },
     truncated: true,
   };
+}
+
+function safeFallback(html, pageUrl) {
+  try {
+    return sanitizeHtml(html, pageUrl);
+  } catch {
+    return `<pre>${escapeHtml(html)}</pre>`;
+  }
 }

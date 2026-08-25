@@ -28,6 +28,49 @@ test("uses Readability without main and tolerates malformed HTML", () => {
   assert.doesNotMatch(html, /<nav|Noise/u);
 });
 
+test("preserves article metadata, warnings, footnotes, and safe code language", () => {
+  const html = extractReadableHtml(`<title>Guide</title><main><article>
+    <header><p>Written by Ada</p></header>
+    <h1>Deployment guide</h1><p>${"Useful documentation. ".repeat(8)}</p>
+    <aside><strong>Warning:</strong> keep a backup.</aside>
+    <pre><code class="highlight language-typescript extra" onclick="bad()">const safe = true;</code></pre>
+    <svg><text>unsafe vector noise</text></svg>
+    <footer><ol><li id="note-1">Required footnote</li></ol></footer>
+  </article></main>`, "https://example.com/guide");
+
+  assert.match(html, /Written by Ada/u);
+  assert.match(html, /Warning:.*keep a backup/su);
+  assert.match(html, /Required footnote/u);
+  assert.match(html, /class="language-typescript"/u);
+  assert.doesNotMatch(html, /highlight|extra|onclick|bad\(\)|<svg|unsafe vector noise/u);
+});
+
+test("preserves useful semantic content inside a lone article", () => {
+  const html = extractReadableHtml(`<nav>Site navigation</nav><article>
+    <header><p>Written by Ada</p></header>
+    <p>${"Useful article content. ".repeat(10)}</p>
+    <aside>Compatibility warning</aside>
+    <footer>License note</footer>
+  </article>`, "https://example.com/article");
+
+  assert.match(html, /Written by Ada/u);
+  assert.match(html, /Compatibility warning/u);
+  assert.match(html, /License note/u);
+  assert.doesNotMatch(html, /Site navigation/u);
+});
+
+test("prioritizes a URL fragment section", () => {
+  const html = extractReadableHtml(`<title>API</title><main>
+    <h2 id="before">Before</h2><p>${"Irrelevant section. ".repeat(8)}</p>
+    <h2 id="target">Target API</h2><p>Required target details.</p><pre><code>target()</code></pre>
+    <h3>Target child</h3><p>Child details.</p>
+    <h2 id="after">After</h2><p>Unwanted following section.</p>
+  </main>`, "https://example.com/docs#target");
+
+  assert.match(html, /Target API|Required target details|Child details|target\(\)/u);
+  assert.doesNotMatch(html, /Irrelevant section|Unwanted following section/u);
+});
+
 test("preserves transport results and passes text through unchanged", async () => {
   const textResult = {
     url: "https://example.com/data.json",
@@ -57,18 +100,40 @@ test("caps final text after the larger extraction acquisition budget", async () 
   assert.equal(result.truncated, true);
 });
 
-test("preserves status, final URL, truncation and falls back on extraction failure", async () => {
+test("caps HTML without cutting its structure", async () => {
+  const provider = new LocalSafeReadabilityProvider({
+    available: () => true,
+    fetch: async () => ({
+      url: "https://example.com/large.html",
+      statusCode: 200,
+      body: { kind: "html", content: `<main><h1>Large</h1><p>${"x".repeat(120_000)}</p><p>tail</p></main>` },
+      truncated: false,
+    }),
+  });
+  const result = await provider.fetch({ url: "https://example.com/large.html" });
+  assert.ok(result.body.content.length <= 100_000);
+  assert.match(result.body.content, /^<h1>Large<\/h1><p>x+/u);
+  assert.match(result.body.content, /<\/p>$/u);
+  assert.equal(result.truncated, true);
+});
+
+test("preserves status, final URL, truncation and safely falls back on extraction failure", async () => {
   const htmlResult = {
     url: "not a valid final URL",
     statusCode: 203,
-    body: { kind: "html", content: "<p>original</p>" },
+    body: { kind: "html", content: "<script>bad()</script><p>original</p>" },
     truncated: true,
   };
   const provider = new LocalSafeReadabilityProvider({
     available: () => true,
     fetch: async () => htmlResult,
   });
-  assert.deepEqual(await provider.fetch({ url: "https://example.com" }), htmlResult);
+  const result = await provider.fetch({ url: "https://example.com" });
+  assert.equal(result.url, htmlResult.url);
+  assert.equal(result.statusCode, htmlResult.statusCode);
+  assert.equal(result.truncated, true);
+  assert.match(result.body.content, /original/u);
+  assert.doesNotMatch(result.body.content, /<script>|<p>original<\/p>/u);
 });
 
 test("preserves transport failures and blocks private destinations", async () => {
