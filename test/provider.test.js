@@ -28,6 +28,19 @@ test("uses Readability without main and tolerates malformed HTML", () => {
   assert.doesNotMatch(html, /<nav|Noise/u);
 });
 
+test("uses Readability before a broad main container", () => {
+  const html = extractReadableHtml(`<title>Repository</title><main>
+    <div class="sidebar">Repository tabs, branches, releases, sponsors, and account controls.</div>
+    <article><h1>Project README</h1>
+      <p>${"Required project documentation marker with useful details. ".repeat(8)}</p>
+      <pre><code>npm install project</code></pre>
+    </article>
+  </main>`, "https://github.example/project");
+
+  assert.match(html, /Project README|Required project documentation marker|npm install project/u);
+  assert.doesNotMatch(html, /Repository tabs|branches, releases|account controls/u);
+});
+
 test("preserves article metadata, warnings, footnotes, and safe code language", () => {
   const html = extractReadableHtml(`<title>Guide</title><main><article>
     <header><p>Written by Ada</p></header>
@@ -112,8 +125,8 @@ test("caps HTML without cutting its structure", async () => {
   });
   const result = await provider.fetch({ url: "https://example.com/large.html" });
   assert.ok(result.body.content.length <= 100_000);
-  assert.match(result.body.content, /^<h1>Large<\/h1><p>x+/u);
-  assert.match(result.body.content, /<\/p>$/u);
+  assert.match(result.body.content, /<h[12]>Large<\/h[12]>.*<p>x+/su);
+  assert.match(result.body.content, /<\/p>(?:<\/div>)*$/u);
   assert.equal(result.truncated, true);
 });
 

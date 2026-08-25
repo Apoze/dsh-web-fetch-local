@@ -3,7 +3,7 @@
 Provider `web_fetch` local pour DeepSeek Harness.
 
 - Le transport public HTTP(S), l’anti-SSRF, les limites et les redirections sont délégués à `dsh-safe-web-fetch`.
-- L’HTML est réduit au contenu principal avec `<main>`, un `<article>` unique ou Mozilla Readability, puis nettoyé par DOMPurify.
+- L’HTML est réduit au contenu principal avec une ancre ciblée, Mozilla Readability, puis `<main>`/`<article>` en repli, avant nettoyage DOMPurify.
 - Une ancre d’URL cible prioritairement sa section; les liens HTTP(S), notes, tableaux, citations et blocs de code restent exploitables.
 - Les scripts, formulaires, URI `data:` et attributs dangereux sont supprimés.
 - La sortie HTML est tronquée avec un DOM équilibré à 100 000 caractères au maximum.

@@ -23,23 +23,15 @@ export function extractReadableHtml(html, pageUrl) {
     let source;
     let title = document.title.trim();
     const targeted = fragmentContent(document, pageUrl);
-    const mains = Array.from(document.querySelectorAll("main"))
-      .filter((main) => textLength(main) >= MIN_MAIN_TEXT);
-    const articles = mains.length === 0
-      ? Array.from(document.querySelectorAll("article"))
-        .filter((article) => textLength(article) >= MIN_MAIN_TEXT)
-      : [];
-
     if (targeted) {
       source = targeted;
-    } else if (mains.length === 1) {
-      source = mains[0].innerHTML;
-    } else if (articles.length === 1) {
-      source = articles[0].innerHTML;
     } else {
+      const fallback = fallbackContent(document);
       try {
-        const article = new Readability(document.cloneNode(true), {
+        prepareForReadability(document);
+        const article = new Readability(document, {
           maxElemsToParse: MAX_READABILITY_ELEMENTS,
+          keepClasses: true,
         }).parse();
         if (article?.content?.trim()) {
           source = article.content;
@@ -49,23 +41,35 @@ export function extractReadableHtml(html, pageUrl) {
       } catch {
         // The sanitized document fallback below is the reliable path.
       }
+
+      source ??= fallback;
     }
 
     source ??= document.body?.innerHTML ?? "";
-    const clean = sanitizeSource(dom, source);
+    const clean = sanitizeSource(dom, source, title);
     if (!clean) throw new Error("readable HTML is empty");
-
-    const container = document.createElement("div");
-    container.innerHTML = clean;
-    if (title && container.querySelector("h1") === null) {
-      const heading = document.createElement("h1");
-      heading.textContent = title;
-      container.prepend(heading);
-    }
-    return container.innerHTML;
+    return clean;
   } finally {
     dom.window.close();
   }
+}
+
+function prepareForReadability(document) {
+  const scope = document.querySelector("article") === null ? "main" : "article";
+  for (const element of document.querySelectorAll(`${scope} header, ${scope} aside, ${scope} footer`)) {
+    const replacement = document.createElement("div");
+    replacement.innerHTML = element.innerHTML;
+    element.replaceWith(replacement);
+  }
+}
+
+function fallbackContent(document) {
+  const mains = Array.from(document.querySelectorAll("main"))
+    .filter((main) => textLength(main) >= MIN_MAIN_TEXT);
+  if (mains.length === 1) return mains[0].innerHTML;
+  const articles = Array.from(document.querySelectorAll("article"))
+    .filter((article) => textLength(article) >= MIN_MAIN_TEXT);
+  return articles.length === 1 ? articles[0].innerHTML : document.body?.innerHTML ?? "";
 }
 
 export function sanitizeHtml(html, pageUrl) {
@@ -105,11 +109,16 @@ export function truncateHtml(html, maxChars) {
   }
 }
 
-function sanitizeSource(dom, source) {
+function sanitizeSource(dom, source, title) {
   const { document } = dom.window;
   const container = document.createElement("div");
   container.innerHTML = source;
   keepOnlyCodeLanguages(container);
+  if (title && container.querySelector("h1") === null) {
+    const heading = document.createElement("h1");
+    heading.textContent = title;
+    container.prepend(heading);
+  }
   const purify = createDOMPurify(dom.window);
   return String(purify.sanitize(container.innerHTML, {
     FORBID_TAGS,
