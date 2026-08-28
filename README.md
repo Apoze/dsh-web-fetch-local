@@ -12,6 +12,7 @@ It fetches public HTTP(S) pages through `dsh-safe-web-fetch`, extracts useful HT
 - Preserves titles, bylines, notes, tables, code blocks, citations, and links.
 - Removes scripts, forms, dangerous attributes, and `data:` URLs.
 - Returns balanced HTML capped at 100,000 characters.
+- Queues excess fetches in cancellable FIFO order instead of exposing the transport's local concurrency refusal.
 - Uses no browser, cookies, credentials, remote extraction service, or DeepSeek API key.
 
 ## Requirements
@@ -50,6 +51,7 @@ dsh web
 - Maximum response: 5 MB
 - Maximum redirects: 5
 - Provider timeout: 25 seconds
+- Concurrent fetches: 8; additional requests wait in FIFO order
 - Maximum returned content: 100,000 characters
 
 Large HTML documents may take longer to parse so useful content is not discarded. PDF, browser-rendered JavaScript, and binary files are intentionally unsupported.

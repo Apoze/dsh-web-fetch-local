@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { LocalSafeReadabilityProvider } from "../index.js";
+import { SafeWebFetchProvider } from "dsh-safe-web-fetch";
+import { LocalSafeReadabilityProvider, apply } from "../index.js";
 import { extractReadableHtml } from "../readability.js";
+
+function fetchResult(url) {
+  return { url, statusCode: 200, body: { kind: "text", content: url }, truncated: false };
+}
+
+async function waitFor(predicate) {
+  for (let attempt = 0; attempt < 20 && !predicate(); attempt += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(predicate(), true);
+}
 
 test("keeps a useful main while removing page chrome and unsafe markup", () => {
   const html = extractReadableHtml(`<!doctype html><title>Documentation</title>
@@ -94,7 +106,7 @@ test("preserves transport results and passes text through unchanged", async () =
   const provider = new LocalSafeReadabilityProvider({
     available: () => true,
     fetch: async () => textResult,
-  });
+  }, 1);
   assert.equal(await provider.fetch({ url: textResult.url }), textResult);
 });
 
@@ -107,7 +119,7 @@ test("caps final text after the larger extraction acquisition budget", async () 
       body: { kind: "text", content: "x".repeat(100_001) },
       truncated: false,
     }),
-  });
+  }, 1);
   const result = await provider.fetch({ url: "https://example.com/large.txt" });
   assert.equal(result.body.content.length, 100_000);
   assert.equal(result.truncated, true);
@@ -122,7 +134,7 @@ test("caps HTML without cutting its structure", async () => {
       body: { kind: "html", content: `<main><h1>Large</h1><p>${"x".repeat(120_000)}</p><p>tail</p></main>` },
       truncated: false,
     }),
-  });
+  }, 1);
   const result = await provider.fetch({ url: "https://example.com/large.html" });
   assert.ok(result.body.content.length <= 100_000);
   assert.match(result.body.content, /<h[12]>Large<\/h[12]>.*<p>x+/su);
@@ -140,7 +152,7 @@ test("preserves status, final URL, truncation and safely falls back on extractio
   const provider = new LocalSafeReadabilityProvider({
     available: () => true,
     fetch: async () => htmlResult,
-  });
+  }, 1);
   const result = await provider.fetch({ url: "https://example.com" });
   assert.equal(result.url, htmlResult.url);
   assert.equal(result.statusCode, htmlResult.statusCode);
@@ -154,7 +166,7 @@ test("preserves transport failures and blocks private destinations", async () =>
   const failing = new LocalSafeReadabilityProvider({
     available: () => true,
     fetch: async () => { throw failure; },
-  });
+  }, 1);
   await assert.rejects(failing.fetch({ url: "https://example.com" }), (error) => error === failure);
 
   const provider = new LocalSafeReadabilityProvider();
@@ -166,4 +178,199 @@ test("preserves transport failures and blocks private destinations", async () =>
   ]) {
     await assert.rejects(provider.fetch({ url }), (error) => error.code === "WEB_PRIVATE_ADDRESS_BLOCKED");
   }
+});
+
+test("admits fetches in FIFO order at capacity one", async () => {
+  const started = [];
+  const pending = new Map();
+  let active = 0;
+  let peak = 0;
+  const provider = new LocalSafeReadabilityProvider({
+    available: () => true,
+    fetch: (request) => {
+      started.push(request.url);
+      active += 1;
+      peak = Math.max(peak, active);
+      return new Promise((resolve) => pending.set(request.url, () => {
+        active -= 1;
+        resolve(fetchResult(request.url));
+      }));
+    },
+  }, 1);
+
+  const queuedSignal = new AbortController().signal;
+  const requests = [
+    provider.fetch({ url: "a" }),
+    provider.fetch({ url: "b" }, queuedSignal),
+    provider.fetch({ url: "c" }),
+  ];
+  await waitFor(() => started.length === 1);
+  assert.deepEqual(started, ["a"]);
+  pending.get("a")();
+  await waitFor(() => started.length === 2);
+  pending.get("b")();
+  await waitFor(() => started.length === 3);
+  pending.get("c")();
+
+  assert.deepEqual((await Promise.all(requests)).map((result) => result.url), ["a", "b", "c"]);
+  assert.equal(peak, 1);
+});
+
+test("uses the configured capacity and keeps provider instances independent", async () => {
+  let active = 0;
+  let peak = 0;
+  const makeProvider = (capacity) => new LocalSafeReadabilityProvider({
+    available: () => true,
+    fetch: async (request) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setImmediate(resolve));
+      active -= 1;
+      return fetchResult(request.url);
+    },
+  }, capacity);
+  const first = makeProvider(2);
+  const second = makeProvider(1);
+
+  await Promise.all([
+    first.fetch({ url: "a" }),
+    first.fetch({ url: "b" }),
+    first.fetch({ url: "c" }),
+    second.fetch({ url: "d" }),
+  ]);
+  assert.equal(peak, 3);
+});
+
+test("removes an aborted queued fetch without consuming a slot", async () => {
+  let releaseActive;
+  const started = [];
+  const provider = new LocalSafeReadabilityProvider({
+    available: () => true,
+    fetch: (request) => {
+      started.push(request.url);
+      return new Promise((resolve) => { releaseActive = () => resolve(fetchResult(request.url)); });
+    },
+  }, 1);
+  const active = provider.fetch({ url: "active" });
+  await waitFor(() => started.length === 1);
+  const controller = new AbortController();
+  const queued = provider.fetch({ url: "queued" }, controller.signal);
+  const reason = new DOMException("cancelled", "AbortError");
+  controller.abort(reason);
+
+  await assert.rejects(queued, (error) => error.code === "WEB_ABORTED" && error.cause === reason);
+  releaseActive();
+  await active;
+  assert.deepEqual(started, ["active"]);
+});
+
+test("forwards active cancellation and releases the slot after failures", async () => {
+  const controller = new AbortController();
+  let calls = 0;
+  let activeSignal;
+  const provider = new LocalSafeReadabilityProvider({
+    available: () => true,
+    fetch: (request, signal) => {
+      calls += 1;
+      if (request.url === "active") {
+        activeSignal = signal;
+        return new Promise((resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+        });
+      }
+      if (request.url === "sync-error") throw new Error("sync failure");
+      if (request.url === "async-error") return Promise.reject(new Error("async failure"));
+      return Promise.resolve(fetchResult(request.url));
+    },
+  }, 1);
+
+  const active = provider.fetch({ url: "active" }, controller.signal);
+  await waitFor(() => activeSignal !== undefined);
+  const reason = new DOMException("cancelled", "AbortError");
+  controller.abort(reason);
+  await assert.rejects(active, (error) => error === reason);
+  await assert.rejects(provider.fetch({ url: "sync-error" }), /sync failure/u);
+  await assert.rejects(provider.fetch({ url: "async-error" }), /async failure/u);
+  assert.equal((await provider.fetch({ url: "success" })).url, "success");
+  assert.equal(calls, 4);
+});
+
+test("dispose aborts active work, rejects the queue, and waits for quiescence", async () => {
+  let activeSignal;
+  const provider = new LocalSafeReadabilityProvider({
+    available: () => true,
+    fetch: (request, signal) => {
+      activeSignal = signal;
+      return new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    },
+  }, 1);
+  const active = provider.fetch({ url: "active" });
+  await waitFor(() => activeSignal !== undefined);
+  const queued = provider.fetch({ url: "queued" }, new AbortController().signal);
+  const disposal = provider.dispose();
+
+  await assert.rejects(active, (error) => error.code === "WEB_ABORTED");
+  await assert.rejects(queued, (error) => error.code === "WEB_ABORTED");
+  await disposal;
+  await provider.dispose();
+  await assert.rejects(provider.fetch({ url: "late" }), (error) => error.code === "WEB_ABORTED");
+});
+
+test("validates admission capacity", async () => {
+  const safeProvider = { available: () => true, fetch: async (request) => fetchResult(request.url) };
+  const provider = new LocalSafeReadabilityProvider(safeProvider, 1);
+  assert.equal(provider.available(), true);
+  assert.throws(() => new LocalSafeReadabilityProvider(safeProvider, 0), /positive integer/u);
+  assert.throws(() => new LocalSafeReadabilityProvider(safeProvider, 1.5), /positive integer/u);
+  assert.throws(() => new LocalSafeReadabilityProvider(safeProvider), /required when injecting/u);
+
+  const controller = new AbortController();
+  const reason = new DOMException("cancelled", "AbortError");
+  controller.abort(reason);
+  await assert.rejects(provider.fetch({ url: "cancelled" }, controller.signal), (error) => (
+    error.code === "WEB_ABORTED" && error.cause === reason
+  ));
+});
+
+test("registers the provider and disposes it with the plugin fiber", async () => {
+  let registered;
+  let dispose;
+  apply({
+    web: { registerFetchProvider: (provider) => { registered = provider; } },
+    effect: (setup) => { dispose = setup(); },
+  });
+  assert.equal(registered.id, "local-safe-readability");
+  await dispose();
+});
+
+test("queues before the real safe provider's fail-fast boundary", async () => {
+  const pending = [];
+  const safeProvider = new SafeWebFetchProvider({
+    maxUrlLength: 2_048,
+    maxResponseBytes: 1_000,
+    maxBodyChars: 1_000,
+    timeoutMs: 1_000,
+    maxRedirects: 0,
+    maxConcurrentRequests: 1,
+    userAgent: "test",
+    allowHosts: [],
+    denyHosts: [],
+  }, {
+    resolver: async () => [{ address: "93.184.216.34", family: 4 }],
+    transportFactory: () => ({
+      request: async () => new Promise((resolve) => pending.push(resolve)),
+      close: async () => {},
+    }),
+  });
+  const provider = new LocalSafeReadabilityProvider(safeProvider, 1);
+  const first = provider.fetch({ url: "https://example.com/first" });
+  const second = provider.fetch({ url: "https://example.com/second" });
+  await waitFor(() => pending.length === 1);
+  pending.shift()(new Response("first", { headers: { "content-type": "text/plain" } }));
+  await waitFor(() => pending.length === 1);
+  pending.shift()(new Response("second", { headers: { "content-type": "text/plain" } }));
+
+  assert.deepEqual((await Promise.all([first, second])).map((result) => result.body.content), ["first", "second"]);
 });
