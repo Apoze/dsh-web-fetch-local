@@ -15,8 +15,8 @@ importers:
         specifier: 3.4.14
         version: 3.4.14
       dsh-safe-web-fetch:
-        specifier: 0.1.0-next.0
-        version: 0.1.0-next.0(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-web@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)))
+        specifier: https://github.com/Apoze/dsh-safe-web-fetch/releases/download/v0.1.0-next.1/dsh-safe-web-fetch-0.1.0-next.1.tgz
+        version: https://github.com/Apoze/dsh-safe-web-fetch/releases/download/v0.1.0-next.1/dsh-safe-web-fetch-0.1.0-next.1.tgz(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-web@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)))
       jsdom:
         specifier: 30.0.1
         version: 30.0.1
@@ -137,9 +137,6 @@ packages:
       '@deepseek-ai/cordis': ^4.0.2
       '@deepseek-ai/dsh-llm': ^0.1.2-alpha.5
 
-  '@deepseek-ai/schemastery@3.18.1':
-    resolution: {integrity: sha512-Qn0FCSwCQnpnj6SB31I6i2sIKgKWnkbJM8O0EU91Gv2UsYVvtZTl6IA0sCwk2e2MZf5S8w5hpq9QkeVvK9qwxg==}
-
   '@deepseek-ai/schemastery@3.18.2':
     resolution: {integrity: sha512-njDtZsznjYxok7KLLlHOPyuv2efdWVbSflAHgztSfbMsg+CVraEoRe2DjOCgClYv3ZCSm7WXoaUkbB/+RY7tWQ==}
 
@@ -179,8 +176,9 @@ packages:
   dompurify@3.4.14:
     resolution: {integrity: sha512-dVoH9z+MY+C9IilgGCk3YfFqjLi3fChm2OiKJMzh6axrJ5qwxqWaZamgmHrpv22CN/KdbZJuGEGgfQoL00LTdg==}
 
-  dsh-safe-web-fetch@0.1.0-next.0:
-    resolution: {integrity: sha512-EV8mYMoQg+E3aqnY7oiM4cRXa/iYQeXoYRqKTUWKYgs1tnsIioDARspzofK/iDx3/geiFSHPo3z2F0Nso1D4WQ==}
+  dsh-safe-web-fetch@https://github.com/Apoze/dsh-safe-web-fetch/releases/download/v0.1.0-next.1/dsh-safe-web-fetch-0.1.0-next.1.tgz:
+    resolution: {integrity: sha512-K8meSixaWfhPf14IV87151CH/0X6bPg/VuYJorxFOy6K69UeXpgBASSAnBY1rTxPx5ONCZhvmV/+U1HpYqB0vg==, tarball: https://github.com/Apoze/dsh-safe-web-fetch/releases/download/v0.1.0-next.1/dsh-safe-web-fetch-0.1.0-next.1.tgz}
+    version: 0.1.0-next.1
     engines: {node: ^22.19.0 || >=24.0.0}
     peerDependencies:
       '@deepseek-ai/cordis': '>=4.0.1 <5'
@@ -255,12 +253,12 @@ packages:
     resolution: {integrity: sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw==}
     engines: {node: '>=20'}
 
-  undici@7.29.0:
-    resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
-    engines: {node: '>=20.18.1'}
-
   undici@8.10.0:
     resolution: {integrity: sha512-HvltHd7avK13QIw/oLe4qoOLyoVSoafqJ2jYOrtMRBkbYT31eiBQ8O0ehRKZiEZCMEyLFQNIADpgCWC5fALvYQ==}
+    engines: {node: '>=22.19.0'}
+
+  undici@8.10.2:
+    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
     engines: {node: '>=22.19.0'}
 
   w3c-xmlserializer@5.0.0:
@@ -387,11 +385,6 @@ snapshots:
       '@deepseek-ai/dsh-llm': 0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)
       '@deepseek-ai/schemastery': 3.18.2
 
-  '@deepseek-ai/schemastery@3.18.1':
-    dependencies:
-      '@deepseek-ai/cosmokit': 1.8.3
-      '@standard-schema/spec': 1.1.0
-
   '@deepseek-ai/schemastery@3.18.2':
     dependencies:
       '@deepseek-ai/cosmokit': 1.8.3
@@ -428,14 +421,14 @@ snapshots:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
-  dsh-safe-web-fetch@0.1.0-next.0(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-web@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2))):
+  dsh-safe-web-fetch@https://github.com/Apoze/dsh-safe-web-fetch/releases/download/v0.1.0-next.1/dsh-safe-web-fetch-0.1.0-next.1.tgz(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-web@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2))):
     dependencies:
       '@deepseek-ai/cordis': 4.0.2
       '@deepseek-ai/dsh-invariants': 0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)
       '@deepseek-ai/dsh-web': 0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2))
-      '@deepseek-ai/schemastery': 3.18.1
+      '@deepseek-ai/schemastery': 3.18.2
       ipaddr.js: 2.5.0
-      undici: 7.29.0
+      undici: 8.10.2
 
   entities@8.0.0: {}
 
@@ -509,9 +502,9 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  undici@7.29.0: {}
-
   undici@8.10.0: {}
+
+  undici@8.10.2: {}
 
   w3c-xmlserializer@5.0.0:
     dependencies:

@@ -23,7 +23,7 @@ It fetches public HTTP(S) pages through `dsh-safe-web-fetch`, extracts useful HT
 ## Install
 
 ```sh
-dsh plugin --profile web add "git+https://github.com/Apoze/dsh-web-fetch-local.git#v0.1.0"
+dsh plugin --profile web add "git+https://github.com/Apoze/dsh-web-fetch-local.git#main"
 ```
 
 Add this provider to `~/.dsh/profiles/web/cordis.patch.yml`:
@@ -66,3 +66,7 @@ pnpm test
 ## License
 
 [MIT](LICENSE)
+
+## HTTP transport maintenance
+
+Version 0.1.1 uses the compiled Apoze dsh-safe-web-fetch 0.1.0-next.1 release (source commit 736e690cccd2d74126455633cd92fd252c35de08), pinned with a lockfile integrity hash. Its Undici 8.10.2 fixes the uncaught paused-parser EOF crash described in https://github.com/nodejs/undici/issues/5360. No runtime exception suppression or node_modules patching is used. Existing DNS pinning, private-address rejection, cancellation and size limits remain in force.

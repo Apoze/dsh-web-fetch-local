@@ -1,6 +1,6 @@
 {
   "name": "dsh-web-fetch-local",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Secure local Readability provider for the DeepSeek Harness web_fetch tool",
   "license": "MIT",
@@ -20,7 +20,7 @@
   "dependencies": {
     "@mozilla/readability": "0.6.0",
     "dompurify": "3.4.14",
-    "dsh-safe-web-fetch": "0.1.0-next.0",
+    "dsh-safe-web-fetch": "https://github.com/Apoze/dsh-safe-web-fetch/releases/download/v0.1.0-next.1/dsh-safe-web-fetch-0.1.0-next.1.tgz",
     "jsdom": "30.0.1"
   },
   "peerDependencies": {
