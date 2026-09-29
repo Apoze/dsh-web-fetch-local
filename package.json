@@ -1,6 +1,6 @@
 {
   "name": "dsh-web-fetch-local",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Secure local Readability provider for the DeepSeek Harness web_fetch tool",
   "license": "MIT",
@@ -16,7 +16,11 @@
   ],
   "type": "module",
   "main": "index.js",
-  "exports": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
   "engines": {
     "node": ">=22.22.2"
   },
@@ -38,5 +42,17 @@
     "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/dsh-invariants": "0.2.0-rc.1",
     "@deepseek-ai/dsh-web": "0.2.0-rc.1"
+  },
+  "files": [
+    "index.js",
+    "readability.js",
+    "README.md",
+    "LICENSE",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   }
 }
