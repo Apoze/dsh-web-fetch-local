@@ -80,3 +80,9 @@ Le paquet déclare un bundle natif (`dsh.bundle.patch`) : il apparaît dans **Pl
 Le bundle est le seul propriétaire de l’entrée `web-fetch-local`. Ne pas conserver une ancienne directive `insert` pour cette même entrée : remplacer celle-ci par un patch `id`/`config`, sans `name`. Les réglages utilisateur restent hors du paquet. Les interrupteurs agissent sur le profil sélectionné ; ne pas désactiver pendant une génération.
 
 Le bundle enregistre le fournisseur sans réécrire les choix de routage `web`. Conserver les autres champs de `web.config` lors d’une modification. Désactiver un fournisseur encore sélectionné rend cette fonction Web indisponible, sans fallback silencieux vers un service différent.
+
+## DSH 0.2.1 compatibility
+
+This version targets DSH `0.2.1-alpha.4`; the manifest declares this tested runtime through `engines.dsh`. Earlier plugin versions remain available in Git history for DSH `0.2.0-rc.1`.
+
+The removed DSH runtime-invariant package is no longer a direct dependency. Public-URL validation and download protections remain enabled.
